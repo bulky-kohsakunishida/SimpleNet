@@ -286,7 +286,8 @@ class SimpleNet(torch.nn.Module):
     
     def test(self, training_data, test_data):
 
-        ckpt_path = os.path.join(self.ckpt_dir, "models.ckpt")
+        # ckpt_path = os.path.join(self.ckpt_dir, "models.ckpt")
+        ckpt_path = os.path.join(self.ckpt_dir, "ckpt.pth")
         if os.path.exists(ckpt_path):
             state_dicts = torch.load(ckpt_path, map_location=self.device)
             if "pretrained_enc" in state_dicts:
@@ -334,7 +335,9 @@ class SimpleNet(torch.nn.Module):
         )
         full_pixel_auroc = pixel_scores["auroc"]
 
-        return auroc, full_pixel_auroc
+        pro = metrics.compute_pro(np.squeeze(np.array(masks_gt)),
+                                  segmentations)
+        return auroc, full_pixel_auroc, pro
     
     def _evaluate(self, test_data, scores, segmentations, features, labels_gt, masks_gt):
         
@@ -395,7 +398,7 @@ class SimpleNet(torch.nn.Module):
             else:
                 self.load_state_dict(state_dict, strict=False)
 
-            self.predict(training_data, "train_")
+            # self.predict(training_data, "train_")
             scores, segmentations, features, labels_gt, masks_gt = self.predict(test_data)
             auroc, full_pixel_auroc, anomaly_pixel_auroc = self._evaluate(test_data, scores, segmentations, features, labels_gt, masks_gt)
             

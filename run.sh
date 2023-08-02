@@ -1,9 +1,9 @@
-datapath=/data4/MVTec_ad
+datapath=~/datasets/mvtecad/
 datasets=('screw' 'pill' 'capsule' 'carpet' 'grid' 'tile' 'wood' 'zipper' 'cable' 'toothbrush' 'transistor' 'metal_nut' 'bottle' 'hazelnut' 'leather')
 dataset_flags=($(for dataset in "${datasets[@]}"; do echo '-d '"${dataset}"; done))
 
 python main.py \
---gpu 4 \
+--gpu 0 \
 --seed 0 \
 --log_group simplenet_mvtec \
 --log_project MVTecAD_Results \
@@ -16,7 +16,7 @@ net \
 --pretrain_embed_dimension 1536 \
 --target_embed_dimension 1536 \
 --patchsize 3 \
---meta_epochs 40 \
+--meta_epochs 10 \
 --embedding_size 256 \
 --gan_epochs 4 \
 --noise_std 0.015 \
