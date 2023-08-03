@@ -19,6 +19,9 @@ from torch.utils.tensorboard import SummaryWriter
 
 import common
 import metrics
+import psutil
+
+import utils
 
 LOGGER = logging.getLogger(__name__)
 
@@ -399,7 +402,11 @@ class SimpleNet(torch.nn.Module):
                 self.load_state_dict(state_dict, strict=False)
 
             # self.predict(training_data, "train_")
-            scores, segmentations, features, labels_gt, masks_gt = self.predict(test_data)
+            image_path, scores, segmentations, features, labels_gt, masks_gt = self.predict(test_data)
+
+            #追加
+            utils.plot_segmentation_images(self.model_dir, image_path, segmentations, scores, masks_gt)
+
             auroc, full_pixel_auroc, anomaly_pixel_auroc = self._evaluate(test_data, scores, segmentations, features, labels_gt, masks_gt)
             
             return auroc, full_pixel_auroc, anomaly_pixel_auroc
@@ -569,7 +576,7 @@ class SimpleNet(torch.nn.Module):
                     scores.append(score)
                     masks.append(mask)
 
-        return scores, masks, features, labels_gt, masks_gt
+        return img_paths, scores, masks, features, labels_gt, masks_gt
 
     def _predict(self, images):
         """Infer score and mask for a batch of images."""
