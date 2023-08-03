@@ -50,14 +50,14 @@ def plot_segmentation_images(
         image = PIL.Image.open(image_path).convert("RGB")
         image = image_transform(image)
         if not isinstance(image, np.ndarray):
-            image = image.numpy()
+            image = np.asarray(image)
 
         if masks_provided:
             if mask_path is not None:
                 mask = PIL.Image.open(mask_path).convert("RGB")
                 mask = mask_transform(mask)
                 if not isinstance(mask, np.ndarray):
-                    mask = mask.numpy()
+                    mask = np.asarray(mask)
             else:
                 mask = np.zeros_like(image)
 
