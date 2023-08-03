@@ -405,7 +405,8 @@ class SimpleNet(torch.nn.Module):
             image_path, scores, segmentations, features, labels_gt, masks_gt = self.predict(test_data)
 
             #追加
-            utils.plot_segmentation_images(self.model_dir, image_path, segmentations, scores, masks_gt)
+            output_image_path = os.path.join(self.ckpt_dir, "out_images")
+            utils.plot_segmentation_images(output_image_path, image_path, segmentations, scores, masks_gt)
 
             auroc, full_pixel_auroc, anomaly_pixel_auroc = self._evaluate(test_data, scores, segmentations, features, labels_gt, masks_gt)
             
