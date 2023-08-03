@@ -171,4 +171,3 @@ def compute_and_store_final_results(
 
     mean_metrics = {"mean_{0}".format(key): item for key, item in mean_metrics.items()}
     return mean_metrics
-TypeError: Invalid shape (288, 288, 1) for image data
