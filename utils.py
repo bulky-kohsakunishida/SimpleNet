@@ -37,20 +37,23 @@ def plot_segmentation_images(
         save_depth: [int] Number of path-strings to use for image savenames.
     """
     cutoff= -1
+    scores = []
     if anomaly_scores is not None and label_gts is not None:
-        _, cutoff = metrics.compute_confusion_matrix(anomaly_scores, label_gts)
+        scores = np.squeeze(np.array(anomaly_scores))
+        img_min_scores = scores.min(axis=-1)
+        img_max_scores = scores.max(axis=-1)
+        scores = (scores - img_min_scores) / (img_max_scores - img_min_scores)
+        _, cutoff = metrics.compute_confusion_matrix(scores, label_gts)
     if masks is None:
         masks = ["-1" for _ in range(len(image_paths))]
     masks_provided = masks[0] != "-1"
-    if anomaly_scores is None:
-        anomaly_scores = ["-1" for _ in range(len(image_paths))]
     if label_gts is None:
         label_gts = ["-1" for _ in range(len(image_paths))]
 
     os.makedirs(savefolder, exist_ok=True)
 
-    for image_path, mask, anomaly_score, label_gt, segmentation in tqdm.tqdm(
-        zip(image_paths, masks, anomaly_scores, label_gts, segmentations),
+    for image_path, mask, score, label_gt, segmentation in tqdm.tqdm(
+        zip(image_paths, masks, scores, label_gts, segmentations),
         total=len(image_paths),
         desc="Generating Segmentation Images...",
         leave=False,
@@ -69,14 +72,14 @@ def plot_segmentation_images(
 
         plot_title = f"Image:{os.path.basename(image_path)}"
         if cutoff != -1:
-            predict_label = 1 if anomaly_score else 0
+            predict_label = 1 if score >= cutoff else 0
             plot_title = f"Image:{os.path.basename(image_path)} label_gt:{label_gt} predict_label:{predict_label}"
 
         savename = image_path.split("/")
         savename = "_".join(savename[-save_depth:])
         savename = os.path.join(savefolder, savename)
         f, axes = plt.subplots(1, 2 + int(masks_provided))
-        plt.title = plot_title
+        f.suptitle(plot_title)
         axes[0].imshow(image)
         axes[1].imshow(mask.squeeze())
         axes[2].imshow(segmentation)
