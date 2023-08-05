@@ -406,7 +406,7 @@ class SimpleNet(torch.nn.Module):
 
             #追加
             output_image_path = os.path.join(self.ckpt_dir, "out_images")
-            utils.plot_segmentation_images(output_image_path, image_path, segmentations, scores, masks_gt)
+            utils.plot_segmentation_images(output_image_path, image_path, segmentations, scores, labels_gt, masks_gt)
 
             auroc, full_pixel_auroc, anomaly_pixel_auroc = self._evaluate(test_data, scores, segmentations, features, labels_gt, masks_gt)
             
@@ -423,16 +423,23 @@ class SimpleNet(torch.nn.Module):
                     for k, v in self.pre_projection.state_dict().items()})
 
         best_record = None
+
+        start = torch.cuda.Event(enable_timing=True)
+        end = torch.cuda.Event(enable_timing=True)
+
+        start.record()
         for i_mepoch in range(self.meta_epochs):
 
             self._train_discriminator(training_data)
 
             # torch.cuda.empty_cache()
-            scores, segmentations, features, labels_gt, masks_gt = self.predict(test_data)
+            img_paths, scores, segmentations, features, labels_gt, masks_gt = self.predict(test_data)
             auroc, full_pixel_auroc, pro = self._evaluate(test_data, scores, segmentations, features, labels_gt, masks_gt)
             self.logger.logger.add_scalar("i-auroc", auroc, i_mepoch)
             self.logger.logger.add_scalar("p-auroc", full_pixel_auroc, i_mepoch)
             self.logger.logger.add_scalar("pro", pro, i_mepoch)
+
+            cm, cutoff = metrics.compute_confusion_matrix(scores, labels_gt)
 
             if best_record is None:
                 best_record = [auroc, full_pixel_auroc, pro]
@@ -452,7 +459,15 @@ class SimpleNet(torch.nn.Module):
             print(f"----- {i_mepoch} I-AUROC:{round(auroc, 4)}(MAX:{round(best_record[0], 4)})"
                   f"  P-AUROC{round(full_pixel_auroc, 4)}(MAX:{round(best_record[1], 4)}) -----"
                   f"  PRO-AUROC{round(pro, 4)}(MAX:{round(best_record[2], 4)}) -----")
-        
+
+            tn, fp, fn, tp = cm.flatten()
+            print(f"confusion matrix: [TP:{tp:>4},FN:{fn:>4}],[FP:{fp:>4},TN:{tn:>4}], cutoff:{round(cutoff, 4)}")
+
+        end.record()
+        torch.cuda.synchronize()
+        elapsed_time = start.elapsed_time(end)
+        print(f" training elapsed time {elapsed_time / 1000} sec.")
+
         torch.save(state_dict, ckpt_path)
         
         return best_record
