@@ -17,9 +17,11 @@ def compute_imagewise_retrieval_metrics(
         anomaly_ground_truth_labels: [np.array or list] [N] Binary labels - 1
                                     if image is an anomaly, 0 if not.
     """
+
     fpr, tpr, thresholds = metrics.roc_curve(
         anomaly_ground_truth_labels, anomaly_prediction_weights
     )
+
     auroc = metrics.roc_auc_score(
         anomaly_ground_truth_labels, anomaly_prediction_weights
     )
@@ -121,3 +123,33 @@ def compute_pro(masks, amaps, num_th=200):
 
     pro_auc = metrics.auc(df["fpr"], df["pro"])
     return pro_auc
+
+def compute_confusion_matrix(
+        anomaly_prediction_weights, anomaly_ground_truth_labels, cutoff=None
+):
+    scores = np.squeeze(np.array(anomaly_prediction_weights))
+    img_min_scores = scores.min(axis=-1)
+    img_max_scores = scores.max(axis=-1)
+    scores = (scores - img_min_scores) / (img_max_scores - img_min_scores)
+
+    fpr, tpr, thresholds = metrics.roc_curve(
+        anomaly_ground_truth_labels, scores
+    )
+
+    if cutoff is None:
+        Youden_index_candidates = tpr - fpr
+        index = np.where(Youden_index_candidates == max(Youden_index_candidates))[0][0]
+
+        # Find the cutoff value at youden index
+        cutoff = thresholds[index]
+        # kando = tpr[index]
+        # tokuido = 1 - fpr[index]
+
+    # Predicted anomaly labels is compute by cutoff values.s
+    anomaly_predict_labels = np.array(scores)
+    anomaly_predict_labels = np.where(anomaly_predict_labels >= cutoff,1,0)
+
+    # compute confusion_matrix
+    cm = metrics.confusion_matrix(anomaly_ground_truth_labels, anomaly_predict_labels)
+
+    return cm, cutoff
