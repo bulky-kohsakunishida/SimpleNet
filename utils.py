@@ -9,6 +9,8 @@ import PIL
 import torch
 import tqdm
 
+import metrics
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -17,6 +19,7 @@ def plot_segmentation_images(
     image_paths,
     segmentations,
     anomaly_scores=None,
+    label_gts=None,
     masks=None,
     image_transform=lambda x: x,
     mask_transform=lambda x: x,
@@ -33,16 +36,21 @@ def plot_segmentation_images(
         mask_transform: [function or lambda] Optional transformation of masks.
         save_depth: [int] Number of path-strings to use for image savenames.
     """
+    cutoff= -1
+    if anomaly_scores is not None and label_gts is not None:
+        _, cutoff = metrics.compute_confusion_matrix(anomaly_scores, label_gts)
     if masks is None:
         masks = ["-1" for _ in range(len(image_paths))]
     masks_provided = masks[0] != "-1"
     if anomaly_scores is None:
         anomaly_scores = ["-1" for _ in range(len(image_paths))]
+    if label_gts is None:
+        label_gts = ["-1" for _ in range(len(image_paths))]
 
     os.makedirs(savefolder, exist_ok=True)
 
-    for image_path, mask, anomaly_score, segmentation in tqdm.tqdm(
-        zip(image_paths, masks, anomaly_scores, segmentations),
+    for image_path, mask, anomaly_score, label_gt, segmentation in tqdm.tqdm(
+        zip(image_paths, masks, anomaly_scores, label_gts, segmentations),
         total=len(image_paths),
         desc="Generating Segmentation Images...",
         leave=False,
@@ -59,10 +67,16 @@ def plot_segmentation_images(
             else:
                 mask = np.zeros_like(image)
 
+        plot_title = f"Image:{os.path.basename(image_path)}"
+        if cutoff != -1:
+            predict_label = 1 if anomaly_score else 0
+            plot_title = f"Image:{os.path.basename(image_path)} label_gt:{label_gt} predict_label:{predict_label}"
+
         savename = image_path.split("/")
         savename = "_".join(savename[-save_depth:])
         savename = os.path.join(savefolder, savename)
         f, axes = plt.subplots(1, 2 + int(masks_provided))
+        plt.title = plot_title
         axes[0].imshow(image)
         axes[1].imshow(mask.squeeze())
         axes[2].imshow(segmentation)
