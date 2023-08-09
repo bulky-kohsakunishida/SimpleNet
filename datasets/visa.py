@@ -231,8 +231,6 @@ class VisADataset(torch.utils.data.Dataset):
             "pipe_fryum",
         ]
 
-        print("apply_class")
-
         split_file = Path(self.source) / "split_csv" / "1cls.csv"
 
         self.split_root = Path(self.source) / "visa_pytorch"
