@@ -23,6 +23,7 @@ LOGGER = logging.getLogger(__name__)
 
 _DATASETS = {
     "mvtec": ["datasets.mvtec", "MVTecDataset"],
+    "visa": ["datasets.visa", "VisADataset"],
 }
 
 
