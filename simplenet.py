@@ -476,7 +476,7 @@ class SimpleNet(torch.nn.Module):
 
         torch.save(state_dict, ckpt_path)
         
-        return best_record
+        return best_record[0], best_record[1], best_record[2]
             
 
     def _train_discriminator(self, input_data):
