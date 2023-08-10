@@ -8,6 +8,7 @@ import numpy as np
 import PIL
 import torch
 import tqdm
+import cv2
 
 import metrics
 
@@ -40,9 +41,9 @@ def plot_segmentation_images(
     scores = []
     if anomaly_scores is not None and label_gts is not None:
         scores = np.squeeze(np.array(anomaly_scores))
-        img_min_scores = scores.min(axis=-1)
-        img_max_scores = scores.max(axis=-1)
-        scores = (scores - img_min_scores) / (img_max_scores - img_min_scores)
+        min_scores = scores.min(axis=-1)
+        max_scores = scores.max(axis=-1)
+        scores = (scores - min_scores) / (max_scores - min_scores)
         _, cutoff = metrics.compute_confusion_matrix(scores, label_gts)
     if masks is None:
         masks = ["-1" for _ in range(len(image_paths))]
@@ -70,20 +71,36 @@ def plot_segmentation_images(
             else:
                 mask = np.zeros_like(image)
 
-        plot_title = f"Image:{os.path.basename(image_path)}"
+        savename = image_path.split("/")
+        axes_composite_image = 0
+        add_title = ""
         if cutoff != -1:
             predict_label = 1 if score >= cutoff else 0
-            plot_title = f"Image:{os.path.basename(image_path)} label_gt:{label_gt} predict_label:{predict_label}"
-
-        savename = image_path.split("/")
+            if label_gt != predict_label:
+                filename_without_extension, extension = os.path.splitext(savename[-1])
+                savename[-1] = f"{filename_without_extension}_NG{extension}"
+            add_title = f" label_gt,predict_label: {label_gt},{predict_label}"
+            axes_composite_image = 2
         savename = "_".join(savename[-save_depth:])
+        plot_title = f"Image: {savename}" + add_title
         savename = os.path.join(savefolder, savename)
-        f, axes = plt.subplots(1, 2 + int(masks_provided))
+
+        f, axes = plt.subplots(1, 2 + axes_composite_image + int(masks_provided))
         f.suptitle(plot_title)
         axes[0].imshow(image)
         axes[1].imshow(mask.squeeze())
         axes[2].imshow(segmentation)
-        f.set_size_inches(3 * (2 + int(masks_provided)), 3)
+        if axes_composite_image != 0:
+            scale_image = cv2.resize(image,segmentation.shape)
+            segmentation_scores = segmentation.copy()
+            segmentation_scores = cv2.normalize(segmentation_scores, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+            segmentation_scores = cv2.applyColorMap(255-segmentation_scores, cv2.COLORMAP_JET)
+            back_image = np.full(scale_image.shape,127).astype(np.uint8)
+            blended = cv2.addWeighted(src1=back_image, alpha=0.5, src2=segmentation_scores, beta=0.5, gamma=0)
+            axes[3].imshow(blended)
+            blended = cv2.addWeighted(src1=scale_image, alpha=0.5, src2=segmentation_scores, beta=0.5, gamma=0)
+            axes[4].imshow(blended)
+        f.set_size_inches(3 * (2 + + int(axes_composite_image) + int(masks_provided)), 3)
         f.tight_layout()
         f.savefig(savename)
         plt.close()
