@@ -405,6 +405,9 @@ class SimpleNet(torch.nn.Module):
             image_path, scores, segmentations, features, labels_gt, masks_gt = self.predict(test_data)
 
             #追加
+            cm, cutoff = metrics.compute_confusion_matrix(scores, labels_gt)
+            tn, fp, fn, tp = cm.flatten()
+            print(f"confusion matrix: [TP:{tp:>4},FN:{fn:>4}],[FP:{fp:>4},TN:{tn:>4}], cutoff:{round(cutoff, 4)}")
             output_image_path = os.path.join(self.ckpt_dir, "out_images")
             utils.plot_segmentation_images(output_image_path, image_path, segmentations, scores, labels_gt, masks_gt)
 
@@ -442,17 +445,19 @@ class SimpleNet(torch.nn.Module):
             cm, cutoff = metrics.compute_confusion_matrix(scores, labels_gt)
 
             if best_record is None:
-                best_record = [auroc, full_pixel_auroc, pro]
+                best_record = [auroc, full_pixel_auroc, pro, cm, cutoff]
                 update_state_dict(state_dict)
                 # state_dict = OrderedDict({k:v.detach().cpu() for k, v in self.state_dict().items()})
             else:
                 if auroc > best_record[0]:
-                    best_record = [auroc, full_pixel_auroc, pro]
+                    best_record = [auroc, full_pixel_auroc, pro, cm, cutoff]
                     update_state_dict(state_dict)
                     # state_dict = OrderedDict({k:v.detach().cpu() for k, v in self.state_dict().items()})
                 elif auroc == best_record[0] and full_pixel_auroc > best_record[1]:
                     best_record[1] = full_pixel_auroc
                     best_record[2] = pro 
+                    best_record[3] = cm
+                    best_record[4] = cutoff
                     update_state_dict(state_dict)
                     # state_dict = OrderedDict({k:v.detach().cpu() for k, v in self.state_dict().items()})
 
@@ -460,13 +465,14 @@ class SimpleNet(torch.nn.Module):
                   f"  P-AUROC{round(full_pixel_auroc, 4)}(MAX:{round(best_record[1], 4)}) -----"
                   f"  PRO-AUROC{round(pro, 4)}(MAX:{round(best_record[2], 4)}) -----")
 
-            tn, fp, fn, tp = cm.flatten()
-            print(f"confusion matrix: [TP:{tp:>4},FN:{fn:>4}],[FP:{fp:>4},TN:{tn:>4}], cutoff:{round(cutoff, 4)}")
-
         end.record()
         torch.cuda.synchronize()
         elapsed_time = start.elapsed_time(end)
-        print(f" training elapsed time {elapsed_time / 1000} sec.")
+        cm = best_record[3]
+        cutoff = best_record[4]
+        tn, fp, fn, tp = cm.flatten()
+        print(f"confusion matrix: [TP:{tp:>4},FN:{fn:>4}],[FP:{fp:>4},TN:{tn:>4}], cutoff:{round(cutoff, 4)}")
+        print(f"training elapsed time {elapsed_time / 1000} sec.")
 
         torch.save(state_dict, ckpt_path)
         

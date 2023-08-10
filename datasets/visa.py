@@ -85,9 +85,9 @@ class VisADataset(torch.utils.data.Dataset):
         self.classnames_to_use = [classname] if classname is not None else _CLASSNAMES
         self.train_val_split = train_val_split
 
-        self.apply_cls1_split()
-
         self.new_source = os.path.join(source, "visa_pytorch")
+        if not os.path.exists(self.new_source):
+            self.apply_cls1_split()
 
         self.imgpaths_per_class, self.data_to_iterate = self.get_image_data()
 
@@ -123,7 +123,7 @@ class VisADataset(torch.utils.data.Dataset):
         image = self.transform_img(image)
 
         if self.split == DatasetSplit.TEST and mask_path is not None:
-            mask = PIL.Image.open(mask_path)
+            mask = PIL.Image.open(mask_path).convert("L")
             mask = self.transform_mask(mask)
         else:
             mask = torch.zeros([1, *image.size()[1:]])
@@ -195,20 +195,20 @@ class VisADataset(torch.utils.data.Dataset):
 
         return imgpaths_per_class, data_to_iterate
 
-    def prepare_data(self) -> None:
-        """Download the dataset if not available."""
-        if (self.split_root / self.category).is_dir():
-            # dataset is available, and split has been applied
-            logger.info("Found the dataset and train/test split.")
-        elif (self.root / self.category).is_dir():
-            # dataset is available, but split has not yet been applied
-            logger.info("Found the dataset. Applying train/test split.")
-            self.apply_cls1_split()
-        else:
-            # dataset is not available
-            download_and_extract(self.root, DOWNLOAD_INFO)
-            logger.info("Downloaded the dataset. Applying train/test split.")
-            self.apply_cls1_split()
+#    def prepare_data(self) -> None:
+#        """Download the dataset if not available."""
+#        if (self.split_root / self.category).is_dir():
+#            # dataset is available, and split has been applied
+#            logger.info("Found the dataset and train/test split.")
+#        elif (self.root / self.category).is_dir():
+#            # dataset is available, but split has not yet been applied
+#            logger.info("Found the dataset. Applying train/test split.")
+#            self.apply_cls1_split()
+#        else:
+#            # dataset is not available
+#            download_and_extract(self.root, DOWNLOAD_INFO)
+#            logger.info("Downloaded the dataset. Applying train/test split.")
+#            self.apply_cls1_split()
 
     def apply_cls1_split(self) -> None:
         """Apply the 1-class subset splitting using the fixed split in the csv file.
